@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { register } from "../../api";
 import { Box, TextField, Button, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const Register = () => {
   const [form, setForm] = useState({ username: "", password: "", confirmPassword: "" });
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -41,8 +43,24 @@ const Register = () => {
         password: form.password,
         public_key: publicKeyBase64,
       });
-      alert("注册成功，私钥已存储到本地！");
-      // 可跳转到登录或主页
+      // 注册成功后导出私钥为PEM文件
+      const pemHeader = "-----BEGIN PRIVATE KEY-----\n";
+      const pemFooter = "\n-----END PRIVATE KEY-----";
+      // 每64字符换行
+      const privateKeyLines = privateKeyBase64.match(/.{1,64}/g).join("\n");
+      const privateKeyPem = pemHeader + privateKeyLines + pemFooter;
+      // 触发浏览器下载
+      const blob = new Blob([privateKeyPem], { type: "application/x-pem-file" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `private_key_${form.username}.pem`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert("注册成功，私钥已自动下载，请妥善保存！");
+      navigate("/chat");
     } catch (err) {
       setError("注册失败，请重试");
     }

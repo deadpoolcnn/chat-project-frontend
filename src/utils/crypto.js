@@ -36,6 +36,18 @@ export async function aesEncrypt(plainText, key, iv) {
   return cipherBuffer;
 }
 
+// 解密：用AES密钥解密消息内容
+export async function aesDecrypt(ciphertextBase64, key, ivBase64) {
+  const ciphertext = base64ToArrayBuffer(ciphertextBase64);
+  const iv = base64ToArrayBuffer(ivBase64);
+  const plainBuffer = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ciphertext
+  );
+  return new TextDecoder().decode(plainBuffer);
+}
+
 // 用 RSA 公钥加密 AES 密钥
 export async function rsaEncryptAesKey(aesKey, publicKeyPem) {
   // 1. 导入公钥
@@ -49,6 +61,24 @@ export async function rsaEncryptAesKey(aesKey, publicKeyPem) {
     rawAes
   );
   return encrypted;
+}
+
+// 解密：用RSA私钥解密AES密钥
+export async function rsaDecryptAesKey(encryptedKeyBase64, privateKeyPem) {
+  const key = await importRsaPrivateKey(privateKeyPem);
+  const encryptedKey = base64ToArrayBuffer(encryptedKeyBase64);
+  const rawAes = await window.crypto.subtle.decrypt(
+    { name: 'RSA-OAEP' },
+    key,
+    encryptedKey
+  );
+  return await window.crypto.subtle.importKey(
+    'raw',
+    rawAes,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
 }
 
 // 用 RSA 私钥签名
