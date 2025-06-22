@@ -29,26 +29,33 @@ const Register = () => {
         true,
         ["encrypt", "decrypt"]
       );
-      // 导出公钥和私钥
+      // 导出RSA公钥和RSA私钥（ArrayBuffer）
       const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
       const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
       // 转为base64
       const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKey)));
       const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKey)));
-      // 本地保存私钥
-      localStorage.setItem("privateKey", privateKeyBase64);
-      // 注册时上传公钥
-      await register({
-        username: form.username,
-        password: form.password,
-        public_key: publicKeyBase64,
-      });
-      // 注册成功后导出私钥为PEM文件
+      // PEM头尾修正为标准PKCS8格式
       const pemHeader = "-----BEGIN PRIVATE KEY-----\n";
       const pemFooter = "\n-----END PRIVATE KEY-----";
       // 每64字符换行
       const privateKeyLines = privateKeyBase64.match(/.{1,64}/g).join("\n");
       const privateKeyPem = pemHeader + privateKeyLines + pemFooter;
+      // 本地保存RSA私钥（PEM格式）
+      localStorage.setItem("privateKey", privateKeyPem);
+      // 本地保存RSA公钥（PEM格式，带头尾）
+      const publicKeyPem = [
+        "-----BEGIN PUBLIC KEY-----",
+        ...(publicKeyBase64.match(/.{1,64}/g) || []),
+        "-----END PUBLIC KEY-----"
+      ].join("\n");
+      localStorage.setItem("publicKey", publicKeyPem);
+      // 注册时上传RSA公钥（PEM格式，带头尾）
+      await register({
+        username: form.username,
+        password: form.password,
+        public_key: publicKeyPem,
+      });
       // 触发浏览器下载
       const blob = new Blob([privateKeyPem], { type: "application/x-pem-file" });
       const url = URL.createObjectURL(blob);

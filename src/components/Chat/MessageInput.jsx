@@ -23,9 +23,9 @@ const MessageInput = ({ onSend, receiverPublicKeyPem, currentFriend }) => {
     const msg = {
       from_user: user.username,
       to_user: currentFriend?.username || "guest", // 你可根据实际传参
+      PublicKeyPem: receiverPublicKeyPem,
       ...encrypted
     };
-    console.log("发送的消息：", msg);
     await sendMessage(msg);
     onSend && onSend(msg);
     setText("");

@@ -14,11 +14,13 @@ const Login = () => {
     const reader = new FileReader();
     reader.onload = evt => {
       const content = evt.target.result;
-      if (!content.trim().startsWith("-----BEGIN PRIVATE KEY-----")) {
+      if (!content.includes("-----BEGIN PRIVATE KEY-----") || !content.includes("-----END PRIVATE KEY-----")) {
         setFileError("请选择正确的PEM格式私钥文件");
         return;
       }
-      localStorage.setItem("privateKey", content.trim());
+      // 只保留 base64 内容
+      const base64 = content.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+      localStorage.setItem("privateKey", base64);
       setFileError("");
       alert("私钥导入成功！");
       navigate("/chat");

@@ -63,27 +63,45 @@ export async function rsaEncryptAesKey(aesKey, publicKeyPem) {
   return encrypted;
 }
 
-// 解密：用RSA私钥解密AES密钥
-export async function rsaDecryptAesKey(encryptedKeyBase64, privateKeyPem) {
-  const key = await importRsaPrivateKey(privateKeyPem);
-  const encryptedKey = base64ToArrayBuffer(encryptedKeyBase64);
-  const rawAes = await window.crypto.subtle.decrypt(
-    { name: 'RSA-OAEP' },
-    key,
-    encryptedKey
-  );
-  return await window.crypto.subtle.importKey(
-    'raw',
-    rawAes,
-    { name: 'AES-GCM', length: 256 },
-    false,
+// 用于解密的RSA私钥导入（RSA-OAEP）
+export async function importRsaPrivateKeyForDecrypt(pem) {
+  const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const der = base64ToArrayBuffer(b64);
+  return window.crypto.subtle.importKey(
+    'pkcs8',
+    der,
+    { name: 'RSA-OAEP', hash: 'SHA-256' },
+    true,
     ['decrypt']
   );
 }
 
-// 用 RSA 私钥签名
+// 解密：用RSA私钥解密AES密钥
+export async function rsaDecryptAesKey(encryptedKeyBase64, privateKeyPem) {
+  try {
+    const key = await importRsaPrivateKeyForDecrypt(privateKeyPem);
+    const encryptedKey = base64ToArrayBuffer(encryptedKeyBase64);
+    const rawAes = await window.crypto.subtle.decrypt(
+      { name: 'RSA-OAEP' },
+      key,
+      encryptedKey
+    );
+    return await window.crypto.subtle.importKey(
+      'raw',
+      rawAes,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+  } catch (err) {
+    throw err;
+  }
+}
+
+// 用 RSA 私钥签名（修正：签名算法应与密钥用途匹配）
 export async function signMessage(plainText, privateKeyPem) {
-  const key = await importRsaPrivateKey(privateKeyPem);
+  // 用于签名的私钥应用 RSASSA-PKCS1-v1_5 算法导入
+  const key = await importRsaPrivateKeyForSign(privateKeyPem);
   const enc = new TextEncoder();
   const data = enc.encode(plainText);
   const signature = await window.crypto.subtle.sign(
@@ -92,6 +110,19 @@ export async function signMessage(plainText, privateKeyPem) {
     data
   );
   return signature;
+}
+
+// 用于签名的RSA私钥导入（RSASSA-PKCS1-v1_5）
+export async function importRsaPrivateKeyForSign(pem) {
+  const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const der = base64ToArrayBuffer(b64);
+  return window.crypto.subtle.importKey(
+    'pkcs8',
+    der,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    true,
+    ['sign']
+  );
 }
 
 // PEM -> CryptoKey 导入
@@ -105,17 +136,6 @@ export async function importRsaPublicKey(pem) {
     { name: 'RSA-OAEP', hash: 'SHA-256' },
     true,
     ['encrypt']
-  );
-}
-export async function importRsaPrivateKey(pem) {
-  const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
-  const der = base64ToArrayBuffer(b64);
-  return window.crypto.subtle.importKey(
-    'pkcs8',
-    der,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    true,
-    ['sign']
   );
 }
 
@@ -140,4 +160,39 @@ export async function encryptAndSignMessage({
     iv: arrayBufferToBase64(iv),
     signature: arrayBufferToBase64(signature)
   };
+}
+
+// 检查公私钥是否配对
+export async function checkKeyPair(privateKeyPem, publicKeyPem) {
+  try {
+    const testData = new TextEncoder().encode("test123" + Math.random());
+    const privateKey = await window.crypto.subtle.importKey(
+      'pkcs8',
+      (() => { const b64 = privateKeyPem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''); return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); })(),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const publicKey = await window.crypto.subtle.importKey(
+      'spki',
+      (() => { const b64 = publicKeyPem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''); return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); })(),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    const signature = await window.crypto.subtle.sign(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      privateKey,
+      testData
+    );
+    const valid = await window.crypto.subtle.verify(
+      { name: 'RSASSA-PKCS1-v1_5' },
+      publicKey,
+      signature,
+      testData
+    );
+    return valid;
+  } catch {
+    return false;
+  }
 }
