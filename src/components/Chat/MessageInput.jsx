@@ -7,14 +7,14 @@ const MessageInput = ({ onSend, receiverPublicKeyPem, currentFriend }) => {
   const [text, setText] = useState("");
   const handleSend = async e => {
     e.preventDefault();
-    // 获取当前用户和私钥
+    // Get current user and private key
     const user = JSON.parse(localStorage.getItem("user"));
     const senderPrivateKeyPem = localStorage.getItem("privateKey");
     if (!user || !senderPrivateKeyPem || !receiverPublicKeyPem) {
-      alert("密钥信息缺失，无法发送消息");
+      alert("Missing key information, cannot send message");
       return;
     }
-    // 加密与签名
+    // Encrypt and sign
     const encrypted = await encryptAndSignMessage({
       plainText: text,
       receiverPublicKeyPem,
@@ -22,7 +22,7 @@ const MessageInput = ({ onSend, receiverPublicKeyPem, currentFriend }) => {
     });
     const msg = {
       from_user: user.username,
-      to_user: currentFriend?.username || "guest", // 你可根据实际传参
+      to_user: currentFriend?.username || "guest",
       PublicKeyPem: receiverPublicKeyPem,
       ...encrypted
     };
@@ -31,9 +31,9 @@ const MessageInput = ({ onSend, receiverPublicKeyPem, currentFriend }) => {
     setText("");
   };
   return (
-    <Box component="form" onSubmit={handleSend} className="flex gap-2">
-      <TextField value={text} onChange={e => setText(e.target.value)} placeholder="输入消息..." size="small" fullWidth required />
-      <Button type="submit" variant="contained" color="primary">发送</Button>
+    <Box component="form" onSubmit={handleSend} sx={{ display: 'flex', gap: 2, p: 2, alignItems: 'center', bgcolor: '#fafbfc', borderRadius: 2 }}>
+      <TextField value={text} onChange={e => setText(e.target.value)} placeholder="Type a message..." size="small" fullWidth required sx={{ bgcolor: '#fff' }} />
+      <Button type="submit" variant="contained" color="primary" sx={{ minWidth: 90 }}>Send</Button>
     </Box>
   );
 };

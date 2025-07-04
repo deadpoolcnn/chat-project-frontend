@@ -9,25 +9,28 @@ const FriendsList = ({ onSelect }) => {
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    // 从localStorage/sessionStorage获取登录用户名
+    // Get logged-in username from localStorage/sessionStorage
     const user = JSON.parse(localStorage.getItem("user"));
     if (user && user.username) {
       setUsername(user.username);
-      getFriends({ username: user.username }).then(res => {
-        // 兼容后端返回不是数组的情况
-        console.log("获取好友列表:", res.data.data);
-        let data = res.data?.data || [];
-        if (!Array.isArray(data)) {
-          data = [];
-        }
-        setFriends(data);
-      });
+      fetchFriends(user.username);
     }
   }, []);
 
+  // Fetch friends list helper
+  const fetchFriends = (username) => {
+    getFriends({ username }).then(res => {
+      let data = res.data?.data || [];
+      if (!Array.isArray(data)) {
+        data = [];
+      }
+      setFriends(data);
+    });
+  };
+
   return (
     <Box sx={{ p: 2, bgcolor: '#fff', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>好友列表</Typography>
+      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Friends List</Typography>
       <List dense sx={{ flex: 1, overflowY: 'auto' }}>
         {friends?.map((f, idx) => (
           <ListItem
@@ -45,14 +48,7 @@ const FriendsList = ({ onSelect }) => {
         ))}
       </List>
       <Divider sx={{ my: 2 }} />
-      <AddFriend onAdd={f => setFriends(v => {
-        console.log("添加好友:", f);
-        // 确保添加的好友不重复
-        if (v.some(existing => existing.username === f.username)) {
-          return v;
-        }
-        return [...v, f];
-      })} />
+      <AddFriend onAdd={() => fetchFriends(username)} />
     </Box>
   );
 };

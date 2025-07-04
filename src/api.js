@@ -8,6 +8,8 @@ const api = axios.create({
 
 export const register = (data) => api.post("/register", data);
 export const login = (data) => api.post("/login", data);
+
+export const getPublicKey = (params) => api.get("/getPublicKey", { params });
 export const getFriends = (params) => api.get("/friends", { params });
 export const addFriend = (data) => api.post("/friends", data);
 export const sendMessage = (data) => api.post("/send_message", data);

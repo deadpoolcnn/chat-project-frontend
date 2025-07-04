@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { login } from "../../api";
+import { login, getPublicKey } from "../../api";
 import { Box, TextField, Button, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [form, setForm] = useState({ username: "", password: "" });
   const [fileError, setFileError] = useState("");
+  const [privateKey, setPrivateKey] = useState(localStorage.getItem("privateKey") || "");
   const navigate = useNavigate();
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
   const handleFileChange = e => {
@@ -15,48 +16,64 @@ const Login = () => {
     reader.onload = evt => {
       const content = evt.target.result;
       if (!content.includes("-----BEGIN PRIVATE KEY-----") || !content.includes("-----END PRIVATE KEY-----")) {
-        setFileError("请选择正确的PEM格式私钥文件");
+        setFileError("Please select a valid PEM format private key file");
         return;
       }
-      // 只保留 base64 内容
+      // PEM header/footer correction to standard PKCS8 format
+      const pemHeader = "-----BEGIN PRIVATE KEY-----\n";
+      const pemFooter = "\n-----END PRIVATE KEY-----";
+      // Only keep base64 content
       const base64 = content.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
-      localStorage.setItem("privateKey", base64);
+      const privateKeyLines = base64.match(/.{1,64}/g).join("\n");
+      const privateKeyPem = pemHeader + privateKeyLines + pemFooter;
+      localStorage.setItem("privateKey", privateKeyPem);
+      setPrivateKey(privateKeyPem); // Update state immediately
       setFileError("");
-      alert("私钥导入成功！");
-      navigate("/chat");
+      alert("Private key imported successfully!");
     };
     reader.readAsText(file);
   };
   const handleSubmit = async e => {
     e.preventDefault();
-    // 登录逻辑
+    // Check if username and password are filled
+    if (!form.username || !form.password) {
+      alert("Please enter your username and password");
+      return;
+    }
+    // Login logic
     try {
-      await login(form);
-      // 登录成功后保存用户名到localStorage
-      const lastUser = JSON.parse(localStorage.getItem("user"));
-      localStorage.setItem("user", JSON.stringify({ username: form.username }));
-      // 检查本地是否有私钥，没有则引导导入
-      if (!localStorage.getItem("privateKey")) {
-        alert("未检测到本地私钥，请导入您的私钥文件（.pem），否则无法解密消息！");
-        // 展示文件上传控件
+      // Check if private key exists locally, if not, prompt to import
+      if (!privateKey) {
+        alert("No local private key detected. Please import your private key file (.pem) to decrypt messages!");
+        // Show file upload control
         return;
       }
+      await login(form);
+      // After successful login, fetch and store public key
+      const res = await getPublicKey({ username: form.username });
+      const publicKey = res.data?.public_key;
+      // console.log("Fetched public key:", publicKey);
+      if (publicKey) {
+        localStorage.setItem("publicKey", publicKey);
+      }
+      // After successful login, save username to localStorage
+      localStorage.setItem("user", JSON.stringify({ username: form.username }));
       navigate("/chat");
     } catch (err) {
-      // 可根据需要添加错误提示
-      alert("登录失败，请检查用户名或密码");
+      // Add error prompt if needed
+      alert("Login failed. Please check your username or password.");
     }
   };
   return (
     <Box component="form" onSubmit={handleSubmit} className="space-y-4">
-      <Typography variant="h6" className="font-semibold">登录</Typography>
-      <TextField name="username" label="用户名" value={form.username} onChange={handleChange} fullWidth required size="small" />
-      <TextField name="password" type="password" label="密码" value={form.password} onChange={handleChange} fullWidth required size="small" />
-      <Button type="submit" variant="contained" color="primary" fullWidth className="mt-2">登录</Button>
-      {/* 私钥导入区域 */}
-      { !localStorage.getItem("privateKey") && (
+      <Typography variant="h6" className="font-semibold">Login</Typography>
+      <TextField name="username" label="Username" value={form.username} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
+      <TextField name="password" type="password" label="Password" value={form.password} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
+      <Button type="submit" variant="contained" color="primary" fullWidth className="mt-2">Login</Button>
+      {/* Private key import area */}
+      { !privateKey && (
         <Box sx={{ mt: 3 }}>
-          <Typography color="error" sx={{ mb: 1 }}>请上传您的私钥（.pem文件）以完成登录：</Typography>
+          <Typography color="error" sx={{ mb: 1 }}>Please upload your private key (.pem file) to complete login:</Typography>
           <input type="file" accept=".pem" onChange={handleFileChange} />
           {fileError && <Typography color="error">{fileError}</Typography>}
         </Box>

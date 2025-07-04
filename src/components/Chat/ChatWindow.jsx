@@ -10,18 +10,17 @@ const ChatWindow = ({ currentFriend }) => {
 
   async function decryptMessage(msg, privateKeyPem, publicKeyPem) {
     try {
-      // 先判断公钥和私钥是否配对
+      // Check if public and private keys match
       const isPair = await checkKeyPair(privateKeyPem, publicKeyPem);
-      console.log("公钥和私钥配对结果：", isPair);
       if (!isPair) {
-        return { ...msg, plainText: '[公钥和私钥不匹配，无法解密]' };
+        return { ...msg, plainText: '[Public and private key do not match, cannot decrypt]' };
       }
-      // 1. 解密AES密钥
+      // 1. Decrypt AES key
       const aesKey = await rsaDecryptAesKey(msg.encrypted_key, privateKeyPem);
       const plainText = await aesDecrypt(msg.ciphertext, aesKey, msg.iv);
       return { ...msg, plainText };
     } catch {
-      return { ...msg, plainText: '[解密失败]' };
+      return { ...msg, plainText: '[Decryption failed]' };
     }
   }
 
@@ -37,14 +36,14 @@ const ChatWindow = ({ currentFriend }) => {
           setMessages([]);
           return;
         }
-        // 解密每条消息
+        // Decrypt each message
         const decryptedMsgs = await Promise.all(msgs.map(msg => decryptMessage(msg, privateKeyPem, publicKeyPem)));
         setMessages(decryptedMsgs);
       })
       .catch(() => setMessages([]));
   }, [currentFriend]);
 
-  // TODO: 拉取消息、加解密、签名验证等
+  // TODO: Fetch messages, encryption/decryption, signature verification, etc.
   return (
     <Paper elevation={2} className="flex flex-col h-full bg-white rounded shadow p-4">
       <Box className="flex-1 flex flex-col overflow-y-auto">

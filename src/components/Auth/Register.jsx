@@ -14,11 +14,11 @@ const Register = () => {
     e.preventDefault();
     setError("");
     if (form.password !== form.confirmPassword) {
-      setError("两次输入的密码不一致");
+      setError("Passwords do not match");
       return;
     }
     try {
-      // 真实场景：前端生成RSA密钥对
+      // In real scenario: generate RSA key pair on frontend
       const keyPair = await window.crypto.subtle.generateKey(
         {
           name: "RSA-OAEP",
@@ -29,34 +29,34 @@ const Register = () => {
         true,
         ["encrypt", "decrypt"]
       );
-      // 导出RSA公钥和RSA私钥（ArrayBuffer）
+      // Export RSA public and private keys (ArrayBuffer)
       const publicKey = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
       const privateKey = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-      // 转为base64
+      // Convert to base64
       const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKey)));
       const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKey)));
-      // PEM头尾修正为标准PKCS8格式
+      // PEM header/footer correction to standard PKCS8 format
       const pemHeader = "-----BEGIN PRIVATE KEY-----\n";
       const pemFooter = "\n-----END PRIVATE KEY-----";
-      // 每64字符换行
+      // Line break every 64 characters
       const privateKeyLines = privateKeyBase64.match(/.{1,64}/g).join("\n");
       const privateKeyPem = pemHeader + privateKeyLines + pemFooter;
-      // 本地保存RSA私钥（PEM格式）
+      // Save RSA private key locally (PEM format)
       localStorage.setItem("privateKey", privateKeyPem);
-      // 本地保存RSA公钥（PEM格式，带头尾）
+      // Save RSA public key locally (PEM format, with header/footer)
       const publicKeyPem = [
         "-----BEGIN PUBLIC KEY-----",
         ...(publicKeyBase64.match(/.{1,64}/g) || []),
         "-----END PUBLIC KEY-----"
       ].join("\n");
       localStorage.setItem("publicKey", publicKeyPem);
-      // 注册时上传RSA公钥（PEM格式，带头尾）
+      // Upload RSA public key (PEM format, with header/footer) during registration
       await register({
         username: form.username,
         password: form.password,
         public_key: publicKeyPem,
       });
-      // 触发浏览器下载
+      // Trigger browser download
       const blob = new Blob([privateKeyPem], { type: "application/x-pem-file" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -66,21 +66,21 @@ const Register = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      alert("注册成功，私钥已自动下载，请妥善保存！");
-      navigate("/chat");
+      alert("Registration successful. Your private key has been downloaded. Please keep it safe!");
+      navigate("/login");
     } catch (err) {
-      setError("注册失败，请重试");
+      setError("Registration failed. Please try again.");
     }
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      <Typography variant="h6" className="font-semibold">注册</Typography>
-      <TextField name="username" label="用户名" value={form.username} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
-      <TextField name="password" type="password" label="密码" value={form.password} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
-      <TextField name="confirmPassword" type="password" label="确认密码" value={form.confirmPassword} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
+      <Typography variant="h6" className="font-semibold">Register</Typography>
+      <TextField name="username" label="Username" value={form.username} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
+      <TextField name="password" type="password" label="Password" value={form.password} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
+      <TextField name="confirmPassword" type="password" label="Confirm Password" value={form.confirmPassword} onChange={handleChange} fullWidth required size="small" sx={{ mb: 2 }} />
       {error && <Typography color="error">{error}</Typography>}
-      <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>注册</Button>
+      <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>Register</Button>
     </Box>
   );
 };

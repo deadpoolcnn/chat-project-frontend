@@ -8,7 +8,7 @@ const MessageList = ({ messages }) => {
 
   const handleToggleDecrypt = async (msg, idx) => {
     if (decrypted[idx] !== undefined) {
-      // 已解密，点击后恢复密文
+      // Already decrypted, click to show ciphertext
       setDecrypted(d => {
         const newD = { ...d };
         delete newD[idx];
@@ -16,20 +16,20 @@ const MessageList = ({ messages }) => {
       });
       return;
     }
-    // 未解密，点击后解密
+    // Not decrypted, click to decrypt
     try {
       const privateKeyPem = localStorage.getItem("privateKey");
       const publicKeyPem = localStorage.getItem("publicKey");
       if (!privateKeyPem || !publicKeyPem) return;
-      // 先验证公私钥是否配对
+      // First, check if the key pair matches
       const isPair = await checkKeyPair(privateKeyPem, publicKeyPem);
       if (!isPair) return;
-      // 用本地RSA private key解密AES key
+      // Use local RSA private key to decrypt AES key
       const aesKey = await rsaDecryptAesKey(msg.encrypted_key, privateKeyPem);
       const plainText = await aesDecrypt(msg.ciphertext, aesKey, msg.iv);
       setDecrypted(d => ({ ...d, [idx]: plainText }));
     } catch {
-      setDecrypted(d => ({ ...d, [idx]: "[解密失败]" }));
+      setDecrypted(d => ({ ...d, [idx]: "[Decryption failed]" }));
     }
   };
 
@@ -51,7 +51,7 @@ const MessageList = ({ messages }) => {
                     sx={{ ml: 2 }}
                     onClick={() => handleToggleDecrypt(msg, i)}
                   >
-                    {decrypted[i] !== undefined ? "加密" : "解密"}
+                    {decrypted[i] !== undefined ? "Cipher" : "Decrypt"}
                   </Button>
                 )}
               </span>
